@@ -1,0 +1,191 @@
+From 03a83130ee65435e409395d58690c6abfc087748 Mon Sep 17 00:00:00 2001
+From: Patch Creator <patch@example.com>
+Date: Fri, 21 Feb 2025 10:45:13 +0800
+Subject: [PATCH] Patch commit
+
+---
+ patch_apply.sh |  57 +++++++++++++++++++++++++++
+ patch_make.sh  | 105 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 162 insertions(+)
+ create mode 100644 patch_apply.sh
+ create mode 100644 patch_make.sh
+
+diff --git a/patch_apply.sh b/patch_apply.sh
+new file mode 100644
+index 0000000..af472c7
+--- /dev/null
++++ b/patch_apply.sh
+@@ -0,0 +1,57 @@
++#!/bin/bash
++set -e
++
++show_help(){
++    echo "Usage: $0 <patch-file> <dst-dir>"
++    echo "Apply a patch file to a destination directory"
++    echo
++    echo "Options:"
++    echo "  -h, --help               Show this help message"
++    echo
++    echo "Examples:"
++    echo "  # Apply patch to current directory"
++    echo "  $0 ../output.patch ."
++}
++
++# Parse command-line arguments
++args=()
++while [[ $# -gt 0 ]]; do
++    case $1 in
++        -h|--help)
++            show_help
++            exit 0
++            ;;
++        *)
++            args+=("$1")
++            shift
++            ;;
++    esac
++done
++
++# Validate arguments
++if [[ ${#args[@]} -ne 2 ]]; then
++    echo "Error: Both patch file and destination directory are required" >&2
++    show_help
++    exit 1
++fi
++
++# Create temporary workspace
++temp_dir=$(mktemp -d)
++
++patch_file=$(realpath "${args[0]}")
++dst_dir=$(realpath "${args[1]}")
++
++# Apply patch
++(
++    cd "$temp_dir"
++    echo -e "Applying patch \n    from $patch_file \n    to $dst_dir"
++    git init --quiet
++    git am --quiet "$patch_file"
++    rm -rf .git  # Auto-delete repo after applying
++    mv ./* "$dst_dir" 2>/dev/null || true  # Handle empty case
++    mv ./.??* "$dst_dir" 2>/dev/null || true  # Move hidden files
++)
++
++# Cleanup
++rm -rf "$temp_dir"
++echo -e "Cleaned up temporary workspace \n    $temp_dir"
+\ No newline at end of file
+diff --git a/patch_make.sh b/patch_make.sh
+new file mode 100644
+index 0000000..56276f7
+--- /dev/null
++++ b/patch_make.sh
+@@ -0,0 +1,105 @@
++#!/bin/bash
++set -e
++
++show_help() {
++    echo "Usage: $0 [OPTIONS] <source-dir>"
++    echo "Generate a Git patch using rsync-style include/exclude patterns"
++    echo
++    echo "Options:"
++    echo "  -e, --exclude PATTERN    Exclude files matching PATTERN (rsync syntax)"
++    echo "  -i, --include PATTERN    Include files matching PATTERN (rsync syntax)"
++    echo "  -o, --output FILE        Specify output patch file (default: output.patch)"
++    echo "  -h, --help               Show this help message"
++    echo
++    echo "Examples:"
++    echo "  # Include all .rs files but exclude tests"
++    echo "  $0 -i '**.rs' -e '*_test.rs' ."
++    echo
++    echo "  # Include entire directory except logs and tmpdir"
++    echo "  $0 -i '**' -e 'logs/' -e 'tmpdir/' /path/to/src"
++    echo
++    echo "  # Include config files but exclude secrets"
++    echo "  $0 -i 'config/**' -e '*.secret' ."
++}
++
++# Parse command-line arguments
++args=()
++output_file="output.patch"
++while [[ $# -gt 0 ]]; do
++    case $1 in
++        -e|--exclude)
++            excludes+=("--exclude=$2")
++            shift 2
++            ;;
++        -i|--include)
++            includes+=("--include=$2")
++            shift 2
++            ;;
++        -o|--output)
++            output_file="$2"
++            shift 2
++            ;;
++        -h|--help)
++            show_help
++            exit 0
++            ;;
++        -*)
++            echo "Error: Unknown option $1" >&2
++            exit 1
++            ;;
++        *)
++            args+=("$1")
++            shift
++            ;;
++    esac
++done
++
++# Validate arguments
++if [[ ${#args[@]} -ne 1 ]]; then
++    show_help >&2
++    exit 1
++fi
++
++source_dir=$(realpath "${args[0]}")
++temp_dir=$(mktemp -d)
++trap 'rm -rf "$temp_dir"' EXIT
++
++# Configure neutral commit identity
++export GIT_AUTHOR_NAME="Patch Creator"
++export GIT_AUTHOR_EMAIL="patch@example.com"
++export GIT_COMMITTER_NAME="$GIT_AUTHOR_NAME"
++export GIT_COMMITTER_EMAIL="$GIT_AUTHOR_EMAIL"
++
++# Build rsync command with patterns
++rsync_cmd=(
++    rsync -aR
++    --prune-empty-dirs
++    "${excludes[@]}"
++    "${includes[@]}"
++    --exclude="*"  # Required to override default include-all
++    . "$temp_dir"
++)
++
++(
++    cd "$source_dir"
++    # Print and execute rsync command
++    echo "Executing: ${rsync_cmd[@]}" >&2
++    "${rsync_cmd[@]}"
++)
++
++# Generate patch
++(
++    cd "$temp_dir"
++    if [[ -n $(find . -mindepth 1 -print -quit) ]]; then
++        git init --quiet
++        git add . >/dev/null
++        git commit --quiet -m "Patch commit"
++        git format-patch --root --stdout > "../$output_file"
++    else
++        echo "Error: No files matched patterns" >&2
++        exit 1
++    fi
++)
++
++mv "$temp_dir/../$output_file" .
++echo "Patch created: $output_file"
+\ No newline at end of file
+-- 
+2.43.0
+
