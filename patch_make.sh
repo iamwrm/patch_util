@@ -72,9 +72,10 @@ export GIT_COMMITTER_EMAIL="$GIT_AUTHOR_EMAIL"
 
 # Build rsync command with patterns
 rsync_cmd=(
-    rsync -aR
+    rsync -aRv
     --prune-empty-dirs
     "${excludes[@]}"
+    --include="*/"
     "${includes[@]}"
     --exclude="*"  # Required to override default include-all
     . "$temp_dir"
