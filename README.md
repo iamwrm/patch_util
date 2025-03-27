@@ -17,6 +17,12 @@ curl --proto '=https' --tlsv1.2 -sSf \
     https://raw.githubusercontent.com/iamwrm/patch_util/main/patch_make.sh | bash -s  \
     -- -i "*.sh" .
 
+curl --proto '=https' --tlsv1.2 -sSf \
+    https://raw.githubusercontent.com/iamwrm/patch_util/main/patch_make.sh | bash -s  \
+    -- -i "*.cpp" -i "*.h" -i "*.hpp" -i "CMakeLists.txt" -i "*.sh" -i "*.fbs" -e "build/" try_flatbuffers
+
+# ==============================
+
 # Apply patch
 mkdir new_dir
 curl --proto '=https' --tlsv1.2 -sSf \
