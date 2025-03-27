@@ -1,6 +1,12 @@
 #!/bin/bash
 set -e
 
+cat << EOF > /dev/null
+
+v1.0.1: Fix include pattern to include subdirs
+
+EOF
+
 show_help() {
     echo "Usage: $0 [OPTIONS] <source-dir>"
     echo "Generate a Git patch using rsync-style include/exclude patterns"
