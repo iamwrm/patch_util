@@ -33,3 +33,10 @@ curl --proto '=https' --tlsv1.2 -sSf \
 Check `output.patch` to see the patch file.
 
 
+## V2 with tar_tui.py
+
+```bash
+uvx --from git+https://github.com/iamwrm/patch_util#subdirectory=tar_tui_py tar_tui
+```
+
+
