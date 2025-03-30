@@ -1,0 +1,6 @@
+[project]
+name = "tar_tui"
+version = "0.1"
+
+[project.scripts]
+tar_tui = "tar_tui_5:main_cli"

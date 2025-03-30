@@ -763,9 +763,9 @@ def main(stdscr, start_path, include_parent_path):
         import traceback
         traceback.print_exc()
         sys.exit(1)
+        
+def main_cli():
 
-
-if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Interactive TUI for selecting files/dirs to archive or patch.")
     parser.add_argument(
         "start_dir",
@@ -815,3 +815,6 @@ if __name__ == "__main__":
          import traceback
          traceback.print_exc()
          sys.exit(1)
+
+if __name__ == "__main__":
+    main_cli()
