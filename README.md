@@ -39,4 +39,9 @@ Check `output.patch` to see the patch file.
 uvx --from git+https://github.com/iamwrm/patch_util#subdirectory=tar_tui_py tar_tui
 ```
 
+## install lazygit
 
+```bash
+mkdir -p ~/.local/bin
+curl -sL https://github.com/jesseduffield/lazygit/releases/download/v0.48.0/lazygit_0.48.0_Linux_x86_64.tar.gz | tar xz -C ~/.local/bin lazygit
+```
