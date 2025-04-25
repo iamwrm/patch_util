@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=61.0"] # Basic requirement
+build-backend = "setuptools.build_meta"
+# We specify our custom build script implicitly via setuptools config below
+# OR explicitly using a custom backend if needed, but let's try with setuptools hooks first.
+
+[project]
+name = "my_c_app_wrapper"
+version = "0.1.0"
+description = "A Python wrapper for a sample C application compiled with Zig."
+readme = "README.md" # Optional
+requires-python = ">=3.8"
+# No runtime Python dependencies needed for the wrapper itself usually
+# dependencies = []
+
+[project.scripts]
+my_c_app = "my_c_app_wrapper.__main__:main" # Entry point
+
+# Tell setuptools where package data is and to include our build script logic
+[tool.setuptools.packages.find]
+where = ["."] # Look for packages in the root directory
+include = ["my_c_app_wrapper*"] # Include our package
+
+# Ensure the compiled binary is included in the wheel
+[tool.setuptools.package-data]
+"my_c_app_wrapper" = ["bin/*"]
+
+# This is a way to hook our custom build logic into setuptools
+# We might put the logic directly in setup.py or a dedicated build.py referenced here
+# For simplicity, let's assume a build.py exists and setuptools can execute it
+# If setuptools alone isn't enough, we might need a more complex build backend.
+# Let's use a simpler approach first: trigger build from setup.py/build.py hook.
+# We'll create a minimal setup.py to trigger build.py if needed,
+# or directly use setuptools build customization features if possible.
+# A custom command in setup.py or direct call from build.py is common.
+
+# Let's aim for a build.py invoked via PEP 517 `build_wheel` hook override.
+# We'll need to define `build_meta` more explicitly or rely on setuptools finding `build.py`.
+# For now, assume `build.py` handles it via custom setuptools commands or direct invocation.

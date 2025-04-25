@@ -1,0 +1,5 @@
+my_c_app_wrapper.egg-info/
+build/
+build_c/
+c_install/
+__pycache__/
