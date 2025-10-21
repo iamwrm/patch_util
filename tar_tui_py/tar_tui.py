@@ -6,6 +6,7 @@ import sys
 import subprocess
 import argparse
 from pathlib import Path
+from typing import List, Optional
 import shlex # For safer command display
 import tempfile # For patch generation
 import shutil # For copying files
@@ -22,7 +23,12 @@ DEFAULT_ARCHIVE_BASE_NAME = "archive" # Used for default filenames
 # --- Data Structure ---
 class TreeNode:
     """Represents a file or directory in the tree."""
-    def __init__(self, path, parent=None, include_parent_path=False):
+    def __init__(
+        self,
+        path: Path,
+        parent: Optional['TreeNode'] = None,
+        include_parent_path: bool = False
+    ) -> None:
         self.path = Path(path).resolve() # Store absolute path for reliable checks
         self.parent = parent
         self.is_dir = self.path.is_dir()
@@ -34,7 +40,7 @@ class TreeNode:
         self.include_parent_path = include_parent_path # For display name format
 
     @property
-    def name(self):
+    def name(self) -> str:
         """Return the display name based on include_parent_path flag."""
         if self.include_parent_path or self.parent is None:
             # Use path relative to the initial CWD for root nodes or when -f is used
@@ -58,7 +64,7 @@ class TreeNode:
              # Use just the basename when -f is not used and it's a child node
              return self.path.name
 
-    def load_children(self):
+    def load_children(self) -> None:
         """Load immediate children of this directory node."""
         if not self.is_dir or self.children_loaded:
             return
@@ -97,7 +103,7 @@ class TreeNode:
             self.error = f"Cannot list directory: {e.strerror}"
             self.children_loaded = False
 
-    def toggle_selection(self):
+    def toggle_selection(self) -> None:
         """Toggle selection state (0 -> 1, 1 -> 0)."""
         if self.error: return # Cannot select error nodes
 
@@ -107,7 +113,7 @@ class TreeNode:
         if self.parent:
             self.parent.update_selection_state()
 
-    def _set_selection_recursive(self, state):
+    def _set_selection_recursive(self, state: int) -> None:
         """Recursively set selection state for node and children."""
         self.selected = state
         if self.is_dir:
@@ -121,7 +127,7 @@ class TreeNode:
                      if not child.error: # Don't try to select error nodes
                          child._set_selection_recursive(state)
 
-    def update_selection_state(self):
+    def update_selection_state(self) -> None:
         """Update parent's selection state based on children."""
         if not self.is_dir:
             return
@@ -168,7 +174,7 @@ class TreeNode:
         if self.parent and self.selected != old_state:
             self.parent.update_selection_state()
 
-    def get_visible_nodes(self):
+    def get_visible_nodes(self) -> List['TreeNode']:
         """Return a flat list of nodes currently visible in the TUI."""
         nodes = [self]
         if self.is_dir and self.expanded:
@@ -179,7 +185,7 @@ class TreeNode:
                 nodes.extend(child.get_visible_nodes())
         return nodes
 
-    def get_selected_paths(self, initial_base_path):
+    def get_selected_paths(self, initial_base_path: Path) -> List[str]:
         """Return a list of paths for selected files relative to initial_base_path.
            Directories that are fully selected mean all contents *currently loadable*
            are included recursively. Partial directories mean recurse deeper.
@@ -225,7 +231,12 @@ class TreeNode:
 
 # --- TUI Application ---
 class TarTUI:
-    def __init__(self, stdscr, start_path, include_parent_path):
+    def __init__(
+        self,
+        stdscr,
+        start_path: Path,
+        include_parent_path: bool
+    ) -> None:
         self.stdscr = stdscr
         self.start_path = Path(start_path).resolve() # Absolute path of start dir
         self.initial_cwd = Path.cwd() # CWD when script was launched
@@ -233,7 +244,9 @@ class TarTUI:
 
         # Ensure start path exists and is a directory
         if not self.start_path.is_dir():
-             raise ValueError(f"Error: Starting path '{start_path}' is not a valid directory.")
+            raise ValueError(
+                f"Error: Starting path '{start_path}' is not a valid directory."
+            )
 
         self.root_node = TreeNode(self.start_path, include_parent_path=self.include_parent_path)
         # Expand the root node initially to show its contents
@@ -243,11 +256,14 @@ class TarTUI:
         self.visible_nodes = []
         self.selected_line = 0
         self.top_line = 0 # For scrolling
-        self.status = "Navigate: Arrows | Select: Space | Expand/Collapse: Enter/Right/Left | Archive/Patch: T G Z P | Quit: Q"
+        self.status = (
+            "Navigate: Arrows | Select: Space | Expand/Collapse: Enter/Right/Left | "
+            "Archive/Patch: T G Z P | Quit: Q"
+        )
         self._update_visible_nodes() # Initialize visible nodes
 
 
-    def _update_visible_nodes(self):
+    def _update_visible_nodes(self) -> None:
         """Update the flat list of nodes currently visible."""
         # The root node itself might be displayed depending on structure.
         # get_visible_nodes starts from the node it's called on.
@@ -262,7 +278,7 @@ class TarTUI:
         self._adjust_scroll()
 
 
-    def run(self):
+    def run(self) -> None:
         """Main application loop."""
         curses.curs_set(0)  # Hide cursor
         self.stdscr.keypad(True) # Enable special keys (arrows)
@@ -324,13 +340,13 @@ class TarTUI:
                  self.selected_line = 0
 
 
-    def get_current_node(self):
+    def get_current_node(self) -> Optional[TreeNode]:
         """Get the TreeNode corresponding to the selected line."""
         if 0 <= self.selected_line < len(self.visible_nodes):
             return self.visible_nodes[self.selected_line]
         return None
 
-    def navigate_into(self):
+    def navigate_into(self) -> bool:
         """Expand directory or move into it. Returns True if view changed."""
         node = self.get_current_node()
         if node and node.is_dir and not node.error:
@@ -354,7 +370,7 @@ class TarTUI:
         return False # No change in expansion state or failed navigation
 
 
-    def navigate_out(self):
+    def navigate_out(self) -> bool:
         """Collapse directory or move selection to parent. Returns True if view changed."""
         node = self.get_current_node()
         if node:
@@ -395,7 +411,7 @@ class TarTUI:
                        pass
         return False # No change
 
-    def _adjust_scroll(self):
+    def _adjust_scroll(self) -> None:
         """Adjust the top_line for scrolling."""
         max_y, max_x = self.stdscr.getmaxyx()
         # Leave space for status bar
@@ -412,8 +428,8 @@ class TarTUI:
         self.top_line = max(0, min(self.top_line, max_top_line))
 
 
-    def get_node_display_prefix(self, node):
-        """ Get the indentation and selection marker. """
+    def get_node_display_prefix(self, node: TreeNode) -> str:
+        """Get the indentation and selection marker."""
         depth = 0
         temp_node = node
         # Count parents until we reach the initial root_node or None
@@ -431,7 +447,7 @@ class TarTUI:
         return f"{indent}{marker}{arrow} "
 
 
-    def draw(self):
+    def draw(self) -> None:
         """Draw the TUI screen."""
         self.stdscr.clear()
         max_y, max_x = self.stdscr.getmaxyx()
@@ -499,7 +515,7 @@ class TarTUI:
         self.stdscr.refresh()
 
 
-    def _get_output_filename(self, default_filename):
+    def _get_output_filename(self, default_filename: str) -> str:
         """Temporarily exit curses to get filename input, providing a default."""
         curses.curs_set(1)
         curses.echo()
@@ -538,7 +554,7 @@ class TarTUI:
             return filename
 
 
-    def create_archive(self, format_type):
+    def create_archive(self, format_type: str) -> None:
         """Collect selected files and call the appropriate command or git logic."""
         # Use the updated get_selected_paths which returns relative file paths
         selected_files_rel = self.root_node.get_selected_paths(self.start_path)
@@ -740,7 +756,8 @@ class TarTUI:
 
 
 # --- Main Execution ---
-def main(stdscr, start_path, include_parent_path):
+def main(stdscr, start_path: Path, include_parent_path: bool) -> None:
+    """Main curses wrapper function."""
     try:
         curses.start_color()
         curses.use_default_colors()
@@ -763,9 +780,21 @@ def main(stdscr, start_path, include_parent_path):
         import traceback
         traceback.print_exc()
         sys.exit(1)
-        
-def main_cli():
 
+def main_cli() -> None:
+    """
+    Command-line interface entry point.
+
+    Parses command-line arguments and launches the interactive TUI for selecting
+    files and directories to archive or patch.
+
+    Dependencies:
+        - Python 3.7+
+        - curses (usually included with Python on Unix-like systems)
+        - git (required only for patch generation)
+        - tar (required for archive creation)
+        - zstd (optional, required only for .tar.zst archives)
+    """
     parser = argparse.ArgumentParser(description="Interactive TUI for selecting files/dirs to archive or patch.")
     parser.add_argument(
         "start_dir",
@@ -794,11 +823,19 @@ def main_cli():
 
 
     if not resolved_start_dir.exists():
-        print(f"Error: Starting path '{args.start_dir}' (resolved to '{resolved_start_dir}') does not exist.", file=sys.stderr)
+        print(
+            f"Error: Starting path '{args.start_dir}' "
+            f"(resolved to '{resolved_start_dir}') does not exist.",
+            file=sys.stderr
+        )
         sys.exit(1)
     if not resolved_start_dir.is_dir():
-         print(f"Error: Starting path '{args.start_dir}' (resolved to '{resolved_start_dir}') is not a directory.", file=sys.stderr)
-         sys.exit(1)
+        print(
+            f"Error: Starting path '{args.start_dir}' "
+            f"(resolved to '{resolved_start_dir}') is not a directory.",
+            file=sys.stderr
+        )
+        sys.exit(1)
 
     # Use curses.wrapper for safety
     try:
